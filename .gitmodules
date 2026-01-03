@@ -1,0 +1,9 @@
+[submodule "external/miniaudio"]
+	path = external/miniaudio
+	url = https://github.com/mackron/miniaudio.git
+[submodule "external/pfft"]
+	path = external/pfft
+	url = https://github.com/marton78/pffft.git
+[submodule "external/pffft"]
+	path = external/pffft
+	url = https://github.com/marton78/pffft.git
