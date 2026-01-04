@@ -36,9 +36,6 @@ class AudioCore {
   bool audioInitialized{false};
   std::atomic<bool> callbackSeen{false};
 
-  std::vector<float> inputRaw;
-  std::atomic<size_t> playhead{0};
-
   std::atomic<size_t> binIndex{0};
   std::vector<float> phaseAccumulators;
   std::vector<float> noisePhaseAccumulators;

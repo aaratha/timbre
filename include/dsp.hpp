@@ -2,18 +2,16 @@
 
 #include <vector>
 
-#include "audio.hpp"
-
 namespace DSP {
 // Use STFT to compute power spectrum
 void computePS(const std::vector<float> &input,
                std::vector<std::vector<float>> &frameOutputs,
                std::vector<float> &psOutput, int frameSize);
 
-// Compute significant frequency components from a spectrum (Hz output)
-void computeSignificantFreqs(const std::vector<float> &input,
-                             std::vector<float> &output, int sampleRate,
-                             int maxCount = 10);
+// Compute peak frequencies from a spectrum (Hz output)
+void computePeakFrequenciesHz(const std::vector<float> &input,
+                              std::vector<float> &output, int sampleRate,
+                              int maxCount = 10);
 
 // Compute spectral envelope (mel-scaled)
 void computeSpectralEnv(const std::vector<float> &input,

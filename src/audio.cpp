@@ -27,7 +27,6 @@ AudioCore::AudioCore(AnalysisCore &analysisCore) : analysisCore(analysisCore) {
     return;
   }
 
-  playhead.store(0);
   audioInitialized = true;
   running.store(true);
 }
@@ -41,7 +40,7 @@ AudioCore::~AudioCore() {
 }
 
 void AudioCore::setBinIndex(size_t index) {
-  const auto &bins = analysisCore.getBinFreqComponents();
+  const auto &bins = analysisCore.getBinFeatures();
   if (bins.empty()) {
     binIndex.store(0);
     return;
@@ -89,9 +88,8 @@ void AudioCore::processAudio(float *out, ma_uint32 frameCount) {
   // }
   // Reproduce sample bin based on rectangle clicked
   // }
-  const auto &binFreqs = analysisCore.getBinFreqComponents();
-  const auto &binEnvs = analysisCore.getBinSpectralEnvs();
-  if (binFreqs.empty() || binEnvs.empty()) {
+  const auto &bins = analysisCore.getBinFeatures();
+  if (bins.empty()) {
     for (ma_uint32 frame = 0; frame < frameCount; ++frame) {
       for (ma_uint32 ch = 0; ch < DEVICE_CHANNELS; ++ch) {
         *out++ = 0.0f;
@@ -101,15 +99,12 @@ void AudioCore::processAudio(float *out, ma_uint32 frameCount) {
   }
 
   size_t currentBin = binIndex.load();
-  if (currentBin >= binFreqs.size()) {
+  if (currentBin >= bins.size()) {
     currentBin = 0;
   }
-  if (currentBin >= binEnvs.size()) {
-    currentBin = 0;
-  }
-
-  const auto &freqs = binFreqs[currentBin]; // dominant freqs
-  const auto &env = binEnvs[currentBin];    // single envelope per bin
+  const auto &features = bins[currentBin];
+  const auto &freqs = features.peakFrequenciesHz; // dominant freqs
+  const auto &env = features.spectralEnvelope;    // single envelope per bin
   size_t channels = DEVICE_CHANNELS;
 
   if (currentBin != lastBinIndex || phaseAccumulators.size() != freqs.size()) {

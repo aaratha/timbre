@@ -72,9 +72,9 @@ void DSP::computePS(const std::vector<float> &input,
   pffft_destroy_setup(pffft);
 }
 
-void DSP::computeSignificantFreqs(const std::vector<float> &input,
-                                  std::vector<float> &output, int sampleRate,
-                                  int maxCount) {
+void DSP::computePeakFrequenciesHz(const std::vector<float> &input,
+                                   std::vector<float> &output, int sampleRate,
+                                   int maxCount) {
   output.clear();
   if (input.size() < 3 || maxCount <= 0)
     return;

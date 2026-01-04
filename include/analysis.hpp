@@ -2,6 +2,11 @@
 
 #include <vector>
 
+struct BinFeatures {
+  std::vector<float> peakFrequenciesHz;
+  std::vector<float> spectralEnvelope;
+};
+
 class AnalysisCore {
   std::vector<float> inputRaw;
   size_t inputBinSize;
@@ -11,10 +16,8 @@ class AnalysisCore {
   std::vector<std::vector<float>> framePS;
   // store overall PS for each bin
   std::vector<std::vector<float>> binPS;
-  // store significant frequency components for each bin
-  std::vector<std::vector<float>> binFreqComponents;
-  // store spectral envelopes for each bin (mel-scaled)
-  std::vector<std::vector<float>> binSpectralEnv;
+  // store spectral features per bin
+  std::vector<BinFeatures> binFeatures;
 
 public:
   AnalysisCore();
@@ -38,6 +41,5 @@ public:
   void findSynthesisFeatures();
 
   std::vector<float> &getInputRaw();
-  std::vector<std::vector<float>> &getBinFreqComponents();
-  std::vector<std::vector<float>> &getBinSpectralEnvs();
+  const std::vector<BinFeatures> &getBinFeatures() const;
 };

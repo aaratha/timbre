@@ -112,24 +112,23 @@ void AnalysisCore::decomposeBins() {
 }
 
 void AnalysisCore::findSynthesisFeatures() {
-  for (const auto &binSpectrum : binPS) {
-    std::vector<float> freqComponents;
-    std::vector<float> spectralEnv;
+  binFeatures.clear();
+  binFeatures.reserve(binPS.size());
 
-    DSP::computeSignificantFreqs(
-        binSpectrum, freqComponents, static_cast<int>(DEVICE_SAMPLE_RATE));
-    DSP::computeSpectralEnv(binSpectrum, spectralEnv,
+  for (const auto &binSpectrum : binPS) {
+    BinFeatures features;
+
+    DSP::computePeakFrequenciesHz(
+        binSpectrum, features.peakFrequenciesHz,
+        static_cast<int>(DEVICE_SAMPLE_RATE));
+    DSP::computeSpectralEnv(binSpectrum, features.spectralEnvelope,
                             static_cast<int>(DEVICE_SAMPLE_RATE));
 
-    binFreqComponents.push_back(freqComponents);
-    binSpectralEnv.push_back(spectralEnv);
+    binFeatures.push_back(std::move(features));
   }
 }
 
 std::vector<float> &AnalysisCore::getInputRaw() { return inputRaw; }
-std::vector<std::vector<float>> &AnalysisCore::getBinFreqComponents() {
-  return binFreqComponents;
-}
-std::vector<std::vector<float>> &AnalysisCore::getBinSpectralEnvs() {
-  return binSpectralEnv;
+const std::vector<BinFeatures> &AnalysisCore::getBinFeatures() const {
+  return binFeatures;
 }
