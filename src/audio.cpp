@@ -138,6 +138,12 @@ void AudioCore::processAudio(float *out, ma_uint32 frameCount) {
       sample = binBuffer[binPlayhead] * binGain;
     }
 
+    if (sample > maxOutputAmplitude) {
+      sample = maxOutputAmplitude;
+    } else if (sample < -maxOutputAmplitude) {
+      sample = -maxOutputAmplitude;
+    }
+
     ++binPlayhead;
     if (binPlayhead >= binBuffer.size()) {
       if (nextBufferReady) {

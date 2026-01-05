@@ -173,7 +173,7 @@ void AnalysisCore::resynthesizeBin(size_t binIndex, std::vector<float> &output) 
         output[i] /= static_cast<float>(N);
 
     // apply synthesis window (Hann)
-    //DSP::window(output, output.size());
+    DSP::window(output, output.size());
 }
 
 
