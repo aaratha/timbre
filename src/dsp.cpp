@@ -182,12 +182,12 @@ void DSP::computeMFCC(const std::vector<float> &input,
 }
 
 void DSP::computeCentroid(const std::vector<float> &input, int size,
-                          float &centroid) {
+                          int sampleRate, float &centroid) {
   const int nSpec = size / 2 + 1;
   float num = 0.0f;
   float denom = 0.0f;
   for (int k = 0; k < nSpec; k++) {
-    num += (k * DEVICE_SAMPLE_RATE / size) * input[k];
+    num += (k * sampleRate / size) * input[k];
     denom += input[k];
   }
   if (denom > 0.0f) {
@@ -214,8 +214,8 @@ void DSP::computeFlux(const std::vector<float> &psCurr,
 // sampleRate: audio sample rate
 // threshold: fraction of total spectral energy to consider (0.85 = 85%)
 // rolloff: output frequency in Hz
-void DSP::computeRolloff(const std::vector<float> &ps, int size,
-                         float &rolloff) {
+void DSP::computeRolloff(const std::vector<float> &ps, int size, int sampleRate,
+                         float threshold, float &rolloff) {
   const int nSpec = size / 2 + 1; // unique FFT bins
   float totalEnergy = 0.0f;
 
@@ -226,7 +226,7 @@ void DSP::computeRolloff(const std::vector<float> &ps, int size,
   // Compute cumulative energy and find bin exceeding threshold
   float cumulative = 0.0f;
   int rollBin = 0;
-  float target = ROLLOFF_THRESHOLD * totalEnergy;
+  float target = threshold * totalEnergy;
 
   for (int k = 0; k < nSpec; ++k) {
     cumulative += ps[k];
@@ -237,5 +237,5 @@ void DSP::computeRolloff(const std::vector<float> &ps, int size,
   }
 
   // Convert bin to frequency in Hz
-  rolloff = (rollBin * float(DEVICE_SAMPLE_RATE)) / size;
+  rolloff = (rollBin * float(sampleRate)) / size;
 }

@@ -3,8 +3,6 @@
 #include <complex>
 #include <vector>
 
-// TODO: Refactor to take globals as parameters instead of using macros
-
 namespace DSP {
 
 void window(std::vector<float> &input, int size);
@@ -32,7 +30,7 @@ void computeMFCC(const std::vector<float> &input, std::vector<float> &output,
                  int size);
 
 // Compute centroid from input power spectrum
-void computeCentroid(const std::vector<float> &input, int size,
+void computeCentroid(const std::vector<float> &input, int size, int sampleRate,
                      float &centroid);
 
 // Compute flux from current and previous power spectra
@@ -40,7 +38,8 @@ void computeFlux(const std::vector<float> &psCurr,
                  const std::vector<float> &psPrev, int size, float &flux);
 
 // Compute rolloff from input power spectrum
-void computeRolloff(const std::vector<float> &ps, int size, float &rolloff);
+void computeRolloff(const std::vector<float> &ps, int size, int sampleRate,
+                    float threshold, float &rolloff);
 
 // Compute UMAP from MFCCs, centroid, flux, and rolloff
 void computeUMAP(const std::vector<std::vector<float>> &input,
