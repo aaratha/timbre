@@ -47,6 +47,17 @@ target_include_directories(pffft PUBLIC
 
 target_compile_definitions(pffft PRIVATE PFFFT_ENABLE_FLOAT)
 
+# ----------------------
+# umappp
+# ----------------------
+FetchContent_Declare(
+  umappp 
+  GIT_REPOSITORY https://github.com/libscran/umappp
+  GIT_TAG master # replace with a pinned release
+)
+
+FetchContent_MakeAvailable(umappp)
+
 
 # ------------------------------------------------------------
 # Qt
@@ -105,4 +116,5 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Qml
     miniaudio
     pffft
+    libscran::umappp
 )
