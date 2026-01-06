@@ -1,3 +1,6 @@
+#define MINIAUDIO_IMPLEMENTATION
+#include "miniaudio.h"
+
 #include "audio.hpp"
 #include "globals.hpp"
 

@@ -7,3 +7,6 @@
 [submodule "external/pffft"]
 	path = external/pffft
 	url = https://github.com/marton78/pffft.git
+[submodule "external/umappp"]
+	path = external/umappp
+	url = https://github.com/libscran/umappp.git

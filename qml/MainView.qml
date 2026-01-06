@@ -7,7 +7,7 @@ ApplicationWindow {
     visible: true
     color: "black"
 
-    property int rectCount: Math.max(1, ui.binCount)
+    property int rectCount: Math.max(1, ui ? ui.binCount : 1)
     property int minRectWidth: 8
     property int activeIndex: -1
 
@@ -53,8 +53,8 @@ ApplicationWindow {
                 }
             }
 
-            onPressed: updateIndex(mouse.x)
-            onPositionChanged: if (pressed) updateIndex(mouse.x)
+            onPressed: function(mouse) { updateIndex(mouse.x) }
+            onPositionChanged: function(mouse) { if (pressed) updateIndex(mouse.x) }
         }
     }
 }
