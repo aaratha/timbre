@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vector>
 #include <complex>
+#include <vector>
 
 class AnalysisCore {
   std::vector<float> inputRaw;
@@ -17,6 +17,9 @@ class AnalysisCore {
   // Final UMAP timbre coordinates
   std::vector<float> binTimbreX;
   std::vector<float> binTimbreY;
+  // Voronoi diagram data for timbre map
+  std::vector<float> voronoiCoords;
+  std::vector<size_t> voronoiTriangleIndices;
 
   size_t binIndex{0};
 
@@ -29,7 +32,7 @@ public:
   // Bin input file into 4096 sample bins with 75% overlap
   void binInput();
 
-  // Decompose each bin into frequency components (re + im) 
+  // Decompose each bin into frequency components (re + im)
   void decomposeBins();
 
   void resynthesizeBin(size_t binIndex, std::vector<float> &output);
@@ -40,12 +43,18 @@ public:
   // compute UMAP coordinates from features
   void computeUmapCoordinates();
 
+  // compute Voronoi diagram coordinates and triangle indices from UMAP
+  // coordinates
+  void computeVoronoiCoords();
+
   size_t getBinIndex();
   std::vector<float> &getInputRaw();
   size_t getBinCount() const;
   const std::vector<float> &getBin(size_t index) const;
   const std::vector<float> &getBinTimbreX() const;
   const std::vector<float> &getBinTimbreY() const;
+  const std::vector<float> &getVoronoiCoords() const;
+  const std::vector<size_t> &getVoronoiTriangleIndices() const;
 
   void setBinIndex(size_t index);
 };

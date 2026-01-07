@@ -4,6 +4,7 @@
 #include <random>
 
 #include "analysis.hpp"
+#include "delaunator.hpp"
 #include "dsp.hpp"
 #include "globals.hpp"
 #include "miniaudio.h"
@@ -236,6 +237,44 @@ void AnalysisCore::computeUmapCoordinates() {
   binTimbreY = std::move(yCoords);
 }
 
+void AnalysisCore::computeVoronoiCoords() {
+  std::vector<double> points;
+  points.reserve(binTimbreX.size() * 2);
+  for (size_t i = 0; i < binTimbreX.size(); ++i) {
+    points.push_back(static_cast<double>(binTimbreX[i]));
+    points.push_back(static_cast<double>(binTimbreY[i]));
+  }
+
+  delaunator::Delaunator d(points);
+
+  voronoiCoords.clear();
+  voronoiTriangleIndices.clear();
+  for (size_t i = 0; i + 2 < d.triangles.size(); i += 3) {
+    const int a = static_cast<int>(d.triangles[i]);
+    const int b = static_cast<int>(d.triangles[i + 1]);
+    const int c = static_cast<int>(d.triangles[i + 2]);
+    voronoiTriangleIndices.push_back(a);
+    voronoiTriangleIndices.push_back(b);
+    voronoiTriangleIndices.push_back(c);
+
+    if (a < 0 || b < 0 || c < 0) {
+      continue;
+    }
+    if (static_cast<size_t>(a) >= binTimbreX.size() ||
+        static_cast<size_t>(b) >= binTimbreX.size() ||
+        static_cast<size_t>(c) >= binTimbreX.size()) {
+      continue;
+    }
+
+    voronoiCoords.push_back(binTimbreX[a]);
+    voronoiCoords.push_back(binTimbreY[a]);
+    voronoiCoords.push_back(binTimbreX[b]);
+    voronoiCoords.push_back(binTimbreY[b]);
+    voronoiCoords.push_back(binTimbreX[c]);
+    voronoiCoords.push_back(binTimbreY[c]);
+  }
+}
+
 std::vector<float> &AnalysisCore::getInputRaw() { return inputRaw; }
 
 size_t AnalysisCore::getBinIndex() { return binIndex; }
@@ -258,4 +297,12 @@ const std::vector<float> &AnalysisCore::getBinTimbreX() const {
 
 const std::vector<float> &AnalysisCore::getBinTimbreY() const {
   return binTimbreY;
+}
+
+const std::vector<float> &AnalysisCore::getVoronoiCoords() const {
+  return voronoiCoords;
+}
+
+const std::vector<size_t> &AnalysisCore::getVoronoiTriangleIndices() const {
+  return voronoiTriangleIndices;
 }
