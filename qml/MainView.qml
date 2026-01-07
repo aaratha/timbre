@@ -90,5 +90,39 @@ ApplicationWindow {
                 }
             }
         }
+
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: false
+
+            function updateIndex(xPos, yPos) {
+                if (!ui || !ui.umapPoints || ui.umapPoints.length === 0) {
+                    return
+                }
+                var bestIndex = -1
+                var bestDist = 1e9
+                var w = plotArea.width - 2 * plotPadding
+                var h = plotArea.height - 2 * plotPadding
+                for (var i = 0; i < ui.umapPoints.length; ++i) {
+                    var p = ui.umapPoints[i]
+                    var px = plotPadding + p.x * w
+                    var py = plotPadding + (1 - p.y) * h
+                    var dx = xPos - px
+                    var dy = yPos - py
+                    var d2 = dx * dx + dy * dy
+                    if (d2 < bestDist) {
+                        bestDist = d2
+                        bestIndex = p.index
+                    }
+                }
+                if (bestIndex >= 0 && activeIndex !== bestIndex) {
+                    activeIndex = bestIndex
+                    ui.rectangleClicked(bestIndex)
+                }
+            }
+
+            onPressed: function(mouse) { updateIndex(mouse.x, mouse.y) }
+            onPositionChanged: function(mouse) { if (pressed) updateIndex(mouse.x, mouse.y) }
+        }
     }
 }
