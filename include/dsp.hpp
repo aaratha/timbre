@@ -5,11 +5,19 @@
 
 namespace DSP {
 
-void window(std::vector<float> &input, int size);
+// Apply Hann window to input samples
+void hannWindow(std::vector<float> &input, int size);
 
 // Compute FFT of input samples (re + im)
 void computeFFT(const std::vector<float> &input,
                 std::vector<std::complex<float>> &output, int size);
+
+// Compute STFT of input samples with given size and hop size
+// Returns vector of frames, only unique frequency bins (size/2 + 1) for each
+// frame (for analysis)
+void computeSTFT(const std::vector<float> &input,
+                 std::vector<std::vector<std::complex<float>>> &output,
+                 int fftSize, int frameCount);
 
 void computeIFFT(const std::vector<std::complex<float>> &input,
                  std::vector<float> &output, int size);
@@ -38,10 +46,16 @@ void computeFlux(const std::vector<float> &psCurr,
                  const std::vector<float> &psPrev, int size, float &flux);
 
 // Compute rolloff from input power spectrum
+// ps: power or magnitude spectrum (length = size/2 + 1)
+// size: original FFT size
+// sampleRate: audio sample rate
+// threshold: fraction of total spectral energy to consider (0.85 = 85%)
+// rolloff: output frequency in Hz
 void computeRolloff(const std::vector<float> &ps, int size, int sampleRate,
                     float threshold, float &rolloff);
 
 // Compute UMAP from MFCCs, centroid, flux, and rolloff
-void computeUMAP(const std::vector<std::vector<float>> &input,
-                 std::vector<std::vector<float>> &output, int nComponents);
+// Returns 2D coordinates for each input feature vector
+void computeUMAP(const std::vector<std::vector<float>> &inputFeatures,
+                 std::vector<float> &outputX, std::vector<float> &outputY);
 }; // namespace DSP

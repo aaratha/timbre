@@ -10,6 +10,8 @@ ApplicationWindow {
     property int rectCount: Math.max(1, ui ? ui.binCount : 1)
     property int minRectWidth: 8
     property int activeIndex: -1
+    property int pointSize: 6
+    property int plotPadding: 16
 
     Item {
         id: binStrip
@@ -55,6 +57,38 @@ ApplicationWindow {
 
             onPressed: function(mouse) { updateIndex(mouse.x) }
             onPositionChanged: function(mouse) { if (pressed) updateIndex(mouse.x) }
+        }
+    }
+
+    Rectangle {
+        id: plotArea
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: binStrip.bottom
+        anchors.bottom: parent.bottom
+        anchors.margins: 16
+        color: "#101418"
+        border.color: "#2c3e50"
+        radius: 8
+
+        Repeater {
+            model: ui ? ui.umapPoints : []
+            delegate: Item {
+                width: pointSize
+                height: pointSize
+
+                readonly property real xNorm: modelData.x
+                readonly property real yNorm: modelData.y
+
+                x: plotPadding + xNorm * (plotArea.width - 2 * plotPadding) - width / 2
+                y: plotPadding + (1 - yNorm) * (plotArea.height - 2 * plotPadding) - height / 2
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: width / 2
+                    color: modelData.index === activeIndex ? "#f39c12" : "#1abc9c"
+                }
+            }
         }
     }
 }

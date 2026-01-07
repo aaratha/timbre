@@ -14,6 +14,9 @@ class AnalysisCore {
   std::vector<std::vector<float>> umapFeatures;
   // store per-bin phase accumulators for deterministic resynthesis
   std::vector<std::vector<float>> binPhaseAccumulators;
+  // Final UMAP timbre coordinates
+  std::vector<float> binTimbreX;
+  std::vector<float> binTimbreY;
 
   size_t binIndex{0};
 
@@ -34,10 +37,15 @@ public:
   // compute and store MFCCs, centroid, flux, rolloff for each bin
   void computeUmapFeatures();
 
+  // compute UMAP coordinates from features
+  void computeUmapCoordinates();
+
   size_t getBinIndex();
   std::vector<float> &getInputRaw();
   size_t getBinCount() const;
   const std::vector<float> &getBin(size_t index) const;
+  const std::vector<float> &getBinTimbreX() const;
+  const std::vector<float> &getBinTimbreY() const;
 
   void setBinIndex(size_t index);
 };

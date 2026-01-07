@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-void DSP::window(std::vector<float> &input, int size) {
+void DSP::hannWindow(std::vector<float> &input, int size) {
   // Apply Hann window
   for (int n = 0; n < size; ++n) {
     float w = 0.5f * (1 - cos(2 * M_PI * n / (size - 1)));
@@ -16,53 +16,88 @@ void DSP::window(std::vector<float> &input, int size) {
 
 void DSP::computeFFT(const std::vector<float> &input,
                      std::vector<std::complex<float>> &output, int size) {
-
-  // Create PFFFT object
   pffft::detail::PFFFT_Setup *pffft =
-      pffft_new_setup(size, pffft::detail::PFFFT_REAL);
+      pffft_new_setup(size, pffft::detail::PFFFT_COMPLEX);
 
   if (!pffft) {
     throw std::runtime_error("Failed to initialize PFFFT");
   }
 
-  float *pffftOutput = new float[size]; // PFFFT output in interleaved format
+  std::vector<float> inputInterleaved(2 * size);
+  for (int n = 0; n < size; ++n) {
+    inputInterleaved[2 * n + 0] = input[n];
+    inputInterleaved[2 * n + 1] = 0.0f;
+  }
 
-  // Perform real FFT
-  pffft_transform(pffft, input.data(), pffftOutput, nullptr,
-                  pffft::detail::PFFFT_FORWARD);
+  std::vector<float> outputInterleaved(2 * size);
 
-  // Convert interleaved floats -> std::complex<float>
-  for (size_t k = 0; k < size; k++) {
-    float re = pffftOutput[2 * k + 0];
-    float im = pffftOutput[2 * k + 1];
+  pffft_transform_ordered(pffft, inputInterleaved.data(),
+                          outputInterleaved.data(), nullptr,
+                          pffft::detail::PFFFT_FORWARD);
+
+  output.resize(size);
+  for (int k = 0; k < size; ++k) {
+    float re = outputInterleaved[2 * k + 0];
+    float im = outputInterleaved[2 * k + 1];
     output[k] = std::complex<float>(re, im);
   }
 
-  // Clean up
   pffft_destroy_setup(pffft);
+}
+
+void DSP::computeSTFT(const std::vector<float> &input,
+                      std::vector<std::vector<std::complex<float>>> &output,
+                      int fftSize, int frameCount) {
+  int nSpec = fftSize;
+  int hopSize = fftSize / 2; // 50% overlap
+
+  int nFrames = std::max(1, frameCount);
+
+  output.resize(nFrames, std::vector<std::complex<float>>(nSpec));
+
+  for (int frame = 0; frame < nFrames; ++frame) {
+    int startIdx = frame * hopSize;
+    std::vector<float> frameBuffer(fftSize, 0.0f);
+
+    // Copy input samples into frame buffer (zero-pad if needed)
+    for (int n = 0; n < fftSize; ++n) {
+      if (startIdx + n < input.size())
+        frameBuffer[n] = input[startIdx + n];
+    }
+
+    // Apply window
+    hannWindow(frameBuffer, fftSize);
+
+    // Compute FFT (full spectrum)
+    std::vector<std::complex<float>> fftOutput(nSpec);
+    computeFFT(frameBuffer, fftOutput, fftSize);
+
+    // Store in output
+    output[frame] = std::move(fftOutput);
+  }
 }
 
 void DSP::computeIFFT(const std::vector<std::complex<float>> &input,
                       std::vector<float> &output, int size) {
-
-  // Prepare buffer for interleaved format (Re, Im)
   std::vector<float> fftInterleaved(2 * size);
-  for (size_t k = 0; k < size; ++k) {
+  for (int k = 0; k < size; ++k) {
     fftInterleaved[2 * k + 0] = input[k].real();
     fftInterleaved[2 * k + 1] = input[k].imag();
   }
 
-  // 4. Allocate output buffer
-  output.resize(size);
+  std::vector<float> outputInterleaved(2 * size);
 
-  // Perform inverse FFT
   pffft::detail::PFFFT_Setup *setup =
-      pffft_new_setup(size, pffft::detail::PFFFT_REAL);
+      pffft_new_setup(size, pffft::detail::PFFFT_COMPLEX);
 
-  pffft_transform_ordered(setup,
-                          fftInterleaved.data(), // input interleaved Re+Im
-                          output.data(),         // output time-domain
-                          nullptr, pffft::detail::PFFFT_BACKWARD);
+  pffft_transform_ordered(setup, fftInterleaved.data(),
+                          outputInterleaved.data(), nullptr,
+                          pffft::detail::PFFFT_BACKWARD);
+
+  output.resize(size);
+  for (int n = 0; n < size; ++n) {
+    output[n] = outputInterleaved[2 * n + 0];
+  }
 
   pffft_destroy_setup(setup);
 }
@@ -188,7 +223,7 @@ void DSP::computeCentroid(const std::vector<float> &input, int size,
   float num = 0.0f;
   float denom = 0.0f;
   for (int k = 0; k < nSpec; k++) {
-    num += (k * sampleRate / size) * input[k];
+    num += (static_cast<float>(k) * sampleRate / size) * input[k];
     denom += input[k];
   }
   if (denom > 0.0f) {
@@ -209,12 +244,6 @@ void DSP::computeFlux(const std::vector<float> &psCurr,
   flux = std::sqrt(flux);
 }
 
-// Computes spectral roll-off frequency in Hz
-// ps: power or magnitude spectrum (length = size/2 + 1)
-// size: original FFT size
-// sampleRate: audio sample rate
-// threshold: fraction of total spectral energy to consider (0.85 = 85%)
-// rolloff: output frequency in Hz
 void DSP::computeRolloff(const std::vector<float> &ps, int size, int sampleRate,
                          float threshold, float &rolloff) {
   const int nSpec = size / 2 + 1; // unique FFT bins
@@ -239,4 +268,50 @@ void DSP::computeRolloff(const std::vector<float> &ps, int size, int sampleRate,
 
   // Convert bin to frequency in Hz
   rolloff = (rollBin * float(sampleRate)) / size;
+}
+
+void DSP::computeUMAP(const std::vector<std::vector<float>> &inputFeatures,
+                      std::vector<float> &outputX,
+                      std::vector<float> &outputY) {
+
+  int nobs = inputFeatures.size();
+  if (nobs == 0)
+    return;
+
+  int ndim = inputFeatures[0].size();
+  int out_dim = 2;
+
+  // Flatten input (column-major)
+  std::vector<double> data(ndim * nobs);
+  for (int obs = 0; obs < nobs; ++obs) {
+    for (int dim = 0; dim < ndim; ++dim) {
+      data[dim + obs * ndim] = static_cast<double>(inputFeatures[obs][dim]);
+    }
+  }
+
+  // Output embedding
+  std::vector<double> embedding(nobs * out_dim);
+
+  // Exact neighbor search (fine for <= few 10k points)
+  knncolle::VptreeBuilder<int, double, double> vp_builder(
+      std::make_shared<knncolle::EuclideanDistance<double, double>>());
+
+  umappp::Options opt;
+  opt.num_neighbors = 15; // typical default
+  opt.min_dist = 0.1;
+  opt.num_epochs = 500;
+
+  auto status = umappp::initialize(ndim, nobs, data.data(),
+                                   vp_builder, out_dim, embedding.data(), opt);
+
+  status.run(embedding.data());
+
+  // Split into X / Y for convenience
+  outputX.resize(nobs);
+  outputY.resize(nobs);
+
+  for (size_t i = 0; i < nobs; ++i) {
+    outputX[i] = static_cast<float>(embedding[i * 2 + 0]);
+    outputY[i] = static_cast<float>(embedding[i * 2 + 1]);
+  }
 }

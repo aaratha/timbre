@@ -16,6 +16,8 @@ int main(int argc, char *argv[]) {
         analysisCore.readFile(argv[1]); // Load audio file from command line argument
         analysisCore.binInput();
         analysisCore.decomposeBins();
+        analysisCore.computeUmapFeatures();
+        analysisCore.computeUmapCoordinates();
     }
 
     AudioCore audioCore(analysisCore);

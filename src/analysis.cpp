@@ -93,89 +93,86 @@ void AnalysisCore::binInput() {
 void AnalysisCore::decomposeBins() {
   for (auto &bin : bins) {
     // 1. Apply window
-    DSP::window(bin, bin.size());
+    DSP::hannWindow(bin, bin.size());
 
     // 2. Prepare FFT output buffer
-    std::vector<std::complex<float>> fftOutput(bin.size()); 
+    std::vector<std::complex<float>> fftOutput(bin.size());
 
     // 3. Compute FFT
     DSP::computeFFT(bin, fftOutput, bin.size());
-
 
     // 5. Store
     binFFTs.push_back(std::move(fftOutput));
   }
 }
 
-void AnalysisCore::resynthesizeBin(size_t binIndex, std::vector<float> &output) {
-    if (bins.empty()) {
-        output.clear();
-        return;
-    }
+void AnalysisCore::resynthesizeBin(size_t binIndex,
+                                   std::vector<float> &output) {
+  if (bins.empty()) {
+    output.clear();
+    return;
+  }
 
-    if (binIndex >= bins.size()) {
-        binIndex = 0;
-    }
+  if (binIndex >= bins.size()) {
+    binIndex = 0;
+  }
 
-    if (binFFTs.empty() || binIndex >= binFFTs.size()) {
-        output = bins[binIndex];
-        return;
-    }
+  if (binFFTs.empty() || binIndex >= binFFTs.size()) {
+    output = bins[binIndex];
+    return;
+  }
 
-    const auto &spectrum = binFFTs[binIndex];
-    size_t N = spectrum.size();
+  const auto &spectrum = binFFTs[binIndex];
+  size_t N = spectrum.size();
 
-    // Extract magnitudes
-    std::vector<float> mag(N);
-    for (size_t k = 0; k < N; ++k) {
-        mag[k] = std::abs(spectrum[k]);
-    }
+  // Extract magnitudes
+  std::vector<float> mag(N);
+  for (size_t k = 0; k < N; ++k) {
+    mag[k] = std::abs(spectrum[k]);
+  }
 
-    std::vector<std::complex<float>> newSpectrum(N);
-    constexpr float twoPi = 2.0f * static_cast<float>(M_PI);
+  std::vector<std::complex<float>> newSpectrum(N);
+  constexpr float twoPi = 2.0f * static_cast<float>(M_PI);
 
-    if (binPhaseAccumulators.size() < binFFTs.size()) {
-        binPhaseAccumulators.resize(binFFTs.size());
-    }
-    if (binPhaseAccumulators[binIndex].size() != N) {
-        binPhaseAccumulators[binIndex].assign(N, 0.0f);
-    }
+  if (binPhaseAccumulators.size() < binFFTs.size()) {
+    binPhaseAccumulators.resize(binFFTs.size());
+  }
+  if (binPhaseAccumulators[binIndex].size() != N) {
+    binPhaseAccumulators[binIndex].assign(N, 0.0f);
+  }
 
 #if RANDOM_PHASE
-    static std::mt19937 rng(
-        static_cast<unsigned>(std::chrono::high_resolution_clock::now()
-                                  .time_since_epoch()
-                                  .count()));
-    static std::uniform_real_distribution<float> phaseDist(0.f, twoPi);
-    for (size_t k = 0; k < N; ++k) {
-        float phi = phaseDist(rng);
-        newSpectrum[k] = std::complex<float>(mag[k] * std::cos(phi),
-                                             mag[k] * std::sin(phi));
-    }
+  static std::mt19937 rng(static_cast<unsigned>(
+      std::chrono::high_resolution_clock::now().time_since_epoch().count()));
+  static std::uniform_real_distribution<float> phaseDist(0.f, twoPi);
+  for (size_t k = 0; k < N; ++k) {
+    float phi = phaseDist(rng);
+    newSpectrum[k] =
+        std::complex<float>(mag[k] * std::cos(phi), mag[k] * std::sin(phi));
+  }
 #else
-    for (size_t k = 0; k < N; ++k) {
-        float phi = binPhaseAccumulators[binIndex][k];
-        newSpectrum[k] = std::complex<float>(mag[k] * std::cos(phi),
-                                             mag[k] * std::sin(phi));
-        float phaseStep = twoPi * static_cast<float>(k) / static_cast<float>(N);
-        phi += phaseStep;
-        if (phi >= twoPi) {
-            phi -= twoPi;
-        }
-        binPhaseAccumulators[binIndex][k] = phi;
+  for (size_t k = 0; k < N; ++k) {
+    float phi = binPhaseAccumulators[binIndex][k];
+    newSpectrum[k] =
+        std::complex<float>(mag[k] * std::cos(phi), mag[k] * std::sin(phi));
+    float phaseStep = twoPi * static_cast<float>(k) / static_cast<float>(N);
+    phi += phaseStep;
+    if (phi >= twoPi) {
+      phi -= twoPi;
     }
+    binPhaseAccumulators[binIndex][k] = phi;
+  }
 #endif
 
-    DSP::computeIFFT(newSpectrum, output, N);
-    
-    // Normalize IFFT output
-    for (size_t i = 0; i < N; ++i)
-        output[i] /= static_cast<float>(N);
+  DSP::computeIFFT(newSpectrum, output, N);
 
-    // apply synthesis window (Hann)
-    DSP::window(output, output.size());
+  // Normalize IFFT output
+  for (size_t i = 0; i < N; ++i)
+    output[i] /= static_cast<float>(N);
+
+  // apply synthesis window (Hann)
+  DSP::hannWindow(output, output.size());
 }
-
 
 void AnalysisCore::computeUmapFeatures() {
   // 1. compute power spectra
@@ -202,10 +199,19 @@ void AnalysisCore::computeUmapFeatures() {
     DSP::computeCentroid(powerSpec, N, DEVICE_SAMPLE_RATE, centroid);
 
     // Compute STFT
+    std::vector<std::vector<std::complex<float>>> stftFrames;
+    DSP::computeSTFT(bins[i], stftFrames, N, 2);
 
     // Compute Flux
     float flux = 0.0f;
-    
+    if (stftFrames.size() >= 2) {
+      std::vector<float> psCurr;
+      std::vector<float> psPrev;
+      DSP::computePowerSpectrum(stftFrames[0], psCurr, N);
+      DSP::computePowerSpectrum(stftFrames[1], psPrev, N);
+      DSP::computeFlux(psCurr, psPrev, N, flux);
+    }
+
     // 6. Compute rolloff
     float rolloff = 0.0f;
     DSP::computeRolloff(powerSpec, N, DEVICE_SAMPLE_RATE, ROLLOFF_THRESHOLD,
@@ -220,7 +226,15 @@ void AnalysisCore::computeUmapFeatures() {
 
     umapFeatures.push_back(std::move(features));
   }
-}  
+}
+
+void AnalysisCore::computeUmapCoordinates() {
+  std::vector<float> xCoords;
+  std::vector<float> yCoords;
+  DSP::computeUMAP(umapFeatures, xCoords, yCoords);
+  binTimbreX = std::move(xCoords);
+  binTimbreY = std::move(yCoords);
+}
 
 std::vector<float> &AnalysisCore::getInputRaw() { return inputRaw; }
 
@@ -236,4 +250,12 @@ const std::vector<float> &AnalysisCore::getBin(size_t index) const {
     return empty;
   }
   return bins[index];
+}
+
+const std::vector<float> &AnalysisCore::getBinTimbreX() const {
+  return binTimbreX;
+}
+
+const std::vector<float> &AnalysisCore::getBinTimbreY() const {
+  return binTimbreY;
 }
