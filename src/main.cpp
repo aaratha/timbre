@@ -18,6 +18,7 @@ int main(int argc, char *argv[]) {
         analysisCore.decomposeBins();
         analysisCore.computeUmapFeatures();
         analysisCore.computeUmapCoordinates();
+        analysisCore.computeVoronoiEdges();
     }
 
     AudioCore audioCore(analysisCore);

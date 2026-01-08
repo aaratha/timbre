@@ -3,6 +3,13 @@
 #include <complex>
 #include <vector>
 
+struct VoronoiEdge {
+  float x1;
+  float y1;
+  float x2;
+  float y2;
+};
+
 class AnalysisCore {
   std::vector<float> inputRaw;
   size_t inputBinSize;
@@ -18,8 +25,7 @@ class AnalysisCore {
   std::vector<float> binTimbreX;
   std::vector<float> binTimbreY;
   // Voronoi diagram data for timbre map
-  std::vector<float> voronoiCoords;
-  std::vector<size_t> voronoiTriangleIndices;
+  std::vector<VoronoiEdge> voronoiEdges;
 
   size_t binIndex{0};
 
@@ -43,9 +49,8 @@ public:
   // compute UMAP coordinates from features
   void computeUmapCoordinates();
 
-  // compute Voronoi diagram coordinates and triangle indices from UMAP
-  // coordinates
-  void computeVoronoiCoords();
+  // compute Voronoi diagram edges from UMAP coordinates
+  void computeVoronoiEdges();
 
   size_t getBinIndex();
   std::vector<float> &getInputRaw();
@@ -54,7 +59,7 @@ public:
   const std::vector<float> &getBinTimbreX() const;
   const std::vector<float> &getBinTimbreY() const;
   const std::vector<float> &getVoronoiCoords() const;
-  const std::vector<size_t> &getVoronoiTriangleIndices() const;
+  const std::vector<VoronoiEdge> &getVoronoiEdges() const;
 
   void setBinIndex(size_t index);
 };

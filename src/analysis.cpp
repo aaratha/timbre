@@ -4,10 +4,12 @@
 #include <random>
 
 #include "analysis.hpp"
-#include "delaunator.hpp"
 #include "dsp.hpp"
 #include "globals.hpp"
 #include "miniaudio.h"
+
+#define JC_VORONOI_IMPLEMENTATION
+#include "jc_voronoi.h"
 
 AnalysisCore::AnalysisCore() {}
 
@@ -237,42 +239,73 @@ void AnalysisCore::computeUmapCoordinates() {
   binTimbreY = std::move(yCoords);
 }
 
-void AnalysisCore::computeVoronoiCoords() {
-  std::vector<double> points;
-  points.reserve(binTimbreX.size() * 2);
-  for (size_t i = 0; i < binTimbreX.size(); ++i) {
-    points.push_back(static_cast<double>(binTimbreX[i]));
-    points.push_back(static_cast<double>(binTimbreY[i]));
+void AnalysisCore::computeVoronoiEdges() {
+  const size_t count = binTimbreX.size();
+  if (count == 0 || binTimbreY.size() != count) {
+    return;
   }
 
-  delaunator::Delaunator d(points);
-
-  voronoiCoords.clear();
-  voronoiTriangleIndices.clear();
-  for (size_t i = 0; i + 2 < d.triangles.size(); i += 3) {
-    const int a = static_cast<int>(d.triangles[i]);
-    const int b = static_cast<int>(d.triangles[i + 1]);
-    const int c = static_cast<int>(d.triangles[i + 2]);
-    voronoiTriangleIndices.push_back(a);
-    voronoiTriangleIndices.push_back(b);
-    voronoiTriangleIndices.push_back(c);
-
-    if (a < 0 || b < 0 || c < 0) {
-      continue;
-    }
-    if (static_cast<size_t>(a) >= binTimbreX.size() ||
-        static_cast<size_t>(b) >= binTimbreX.size() ||
-        static_cast<size_t>(c) >= binTimbreX.size()) {
-      continue;
-    }
-
-    voronoiCoords.push_back(binTimbreX[a]);
-    voronoiCoords.push_back(binTimbreY[a]);
-    voronoiCoords.push_back(binTimbreX[b]);
-    voronoiCoords.push_back(binTimbreY[b]);
-    voronoiCoords.push_back(binTimbreX[c]);
-    voronoiCoords.push_back(binTimbreY[c]);
+  // ------------------------------------------------------------
+  // 1. Convert points
+  // ------------------------------------------------------------
+  std::vector<jcv_point> points(count);
+  for (size_t i = 0; i < count; ++i) {
+    points[i].x = binTimbreX[i];
+    points[i].y = binTimbreY[i];
   }
+
+  // ------------------------------------------------------------
+  // 2. Setup bounds (with padding so points don't sit on edges)
+  // ------------------------------------------------------------
+  float minX = binTimbreX[0];
+  float maxX = binTimbreX[0];
+  float minY = binTimbreY[0];
+  float maxY = binTimbreY[0];
+  for (size_t i = 1; i < count; ++i) {
+    minX = std::min(minX, binTimbreX[i]);
+    maxX = std::max(maxX, binTimbreX[i]);
+    minY = std::min(minY, binTimbreY[i]);
+    maxY = std::max(maxY, binTimbreY[i]);
+  }
+
+  jcv_rect bounds;
+  bounds.min.x = minX;
+  bounds.min.y = minY;
+  bounds.max.x = maxX;
+  bounds.max.y = maxY;
+
+  // ------------------------------------------------------------
+  // 3. Generate Voronoi diagram
+  // ------------------------------------------------------------
+  jcv_diagram diagram;
+  memset(&diagram, 0, sizeof(jcv_diagram));
+
+  jcv_diagram_generate((int)count, points.data(), &bounds, nullptr, &diagram);
+
+  // ------------------------------------------------------------
+  // 4. Extract edges (graph)
+  // ------------------------------------------------------------
+  voronoiEdges.clear(); // you define this
+
+  const jcv_site *sites = jcv_diagram_get_sites(&diagram);
+  for (int i = 0; i < diagram.numsites; ++i) {
+    const jcv_site *site = &sites[i];
+
+    for (const jcv_graphedge *e = site->edges; e; e = e->next) {
+      if (!e->neighbor)
+        continue;
+
+      // Line segment
+      VoronoiEdge edge = VoronoiEdge{e->pos[0].x, e->pos[0].y, e->pos[1].x, e->pos[1].y};
+
+      voronoiEdges.emplace_back(edge);
+    }
+  }
+
+  // ------------------------------------------------------------
+  // 5. Cleanup
+  // ------------------------------------------------------------
+  jcv_diagram_free(&diagram);
 }
 
 std::vector<float> &AnalysisCore::getInputRaw() { return inputRaw; }
@@ -299,10 +332,6 @@ const std::vector<float> &AnalysisCore::getBinTimbreY() const {
   return binTimbreY;
 }
 
-const std::vector<float> &AnalysisCore::getVoronoiCoords() const {
-  return voronoiCoords;
-}
-
-const std::vector<size_t> &AnalysisCore::getVoronoiTriangleIndices() const {
-  return voronoiTriangleIndices;
+const std::vector<VoronoiEdge> &AnalysisCore::getVoronoiEdges() const {
+  return voronoiEdges;
 }

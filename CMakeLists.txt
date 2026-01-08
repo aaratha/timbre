@@ -58,6 +58,17 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(umappp)
 
+# ----------------------
+# jc_voronoi (header-only)
+# ----------------------
+FetchContent_Declare(
+    jc_voronoi_src
+    GIT_REPOSITORY https://github.com/JCash/voronoi.git
+    GIT_TAG master
+)
+
+FetchContent_Populate(jc_voronoi_src)
+
 # ------------------------------------------------------------
 # Qt
 # ------------------------------------------------------------
@@ -89,6 +100,8 @@ add_library(timbreine_core STATIC
 target_include_directories(timbreine_core PUBLIC
     ${PROJECT_SOURCE_DIR}/include
     ${miniaudio_src_SOURCE_DIR}
+    ${delaunator_cpp_SOURCE_DIR}/include
+    ${jc_voronoi_src_SOURCE_DIR}/src
 )
 
 target_link_libraries(timbreine_core PUBLIC
@@ -117,6 +130,7 @@ qt_add_executable(${PROJECT_NAME}
 
 qt_add_qml_module(${PROJECT_NAME}
     URI MyApp
+    SOURCES
     QML_FILES
         qml/MainView.qml
 )
@@ -148,6 +162,10 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Qml
     timbreine_core
     timbreine_ui
+)
+
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
 )
 
 # ------------------------------------------------------------
